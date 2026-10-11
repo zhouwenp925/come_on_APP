@@ -135,16 +135,47 @@ fun ShouxinApp(graph: AppGraph, requestedTab: Int) {
                         item { WeekPanel(daily, settings.targets) }
                     }
                     1 -> {
-                        item { Panel { Text("提醒要有分寸", fontWeight = FontWeight.Bold); Text("每天及滚动 24 小时最多 ${settings.dailyLimit} 条鼓励，冷却 ${settings.cooldownMinutes} 分钟。安静时段 ${minuteText(settings.quietStart)}—${minuteText(settings.quietEnd)}。", fontSize = 13.sp); Text("固定与间隔提醒由系统安排，可能延迟；过期提醒不会集中补发。", color = Color.Gray, fontSize = 12.sp) } }
+                        item { Panel {
+                            Text("按你的节奏，收到一句鼓励", fontWeight = FontWeight.Bold)
+                            Text("可以每天在指定时刻提醒，也可以在选定时段内每隔 15～180 分钟提醒。定时与间隔鼓励无需开启使用监测或守护。", fontSize = 13.sp)
+                            OutlinedButton(onClick = { editor = (rules.firstOrNull { it.type == "FIXED_TIME" }?.model()
+                                ?: Rule(UUID.randomUUID().toString(), type = RuleType.FIXED_TIME)).copy(enabled = true, style = "INSPIRING") }, modifier = Modifier.fillMaxWidth()) { Text("设置定时鸡汤") }
+                            OutlinedButton(onClick = { editor = (rules.firstOrNull { it.type == "INTERVAL" }?.model()
+                                ?: Rule(UUID.randomUUID().toString(), type = RuleType.INTERVAL)).copy(enabled = true, style = "INSPIRING") }, modifier = Modifier.fillMaxWidth()) { Text("设置间隔鸡汤") }
+                            TextButton(onClick = { contentPicker = true }) { Text("看看励志文案 · 收藏喜欢的句子") }
+                        } }
+                        item { Panel {
+                            Text("让提醒更准时", fontWeight = FontWeight.Bold)
+                            val exact = remember(tick / 5000) { Permissions.exactAlarms(context) }
+                            Text(if (exact) "闹钟与提醒：已允许，使用精确定时。" else "闹钟与提醒：未允许，系统可能延迟安排。", fontSize = 13.sp)
+                            Text("允许后会重新安排已开启的规则。省电限制、强行停止、通知关闭仍会影响送达。", color = Color.Gray, fontSize = 12.sp)
+                            if (!exact && Build.VERSION.SDK_INT >= 31) OutlinedButton(onClick = {
+                                runCatching { context.startActivity(Intent(Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM, Uri.parse("package:${context.packageName}"))) }
+                                    .onFailure { graph.feedback.value = "请在系统设置 → 特殊应用权限 → 闹钟与提醒中允许收心。" }
+                            }) { Text("允许准时提醒") }
+                            if (!Permissions.notifications(context)) OutlinedButton(onClick = {
+                                if (Build.VERSION.SDK_INT >= 33) permission.launch(Manifest.permission.POST_NOTIFICATIONS)
+                                else context.startActivity(Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS).putExtra(Settings.EXTRA_APP_PACKAGE, context.packageName))
+                            }) { Text("允许鼓励通知") }
+                            TextButton(onClick = {
+                                runCatching { context.startActivity(Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:${context.packageName}"))) }
+                                    .onFailure { graph.feedback.value = "请从系统设置打开收心的应用信息，允许后台运行与通知。" }
+                            }) { Text("查看系统后台与通知设置") }
+                        } }
+                        item { Panel { Text("提醒要有分寸", fontWeight = FontWeight.Bold); Text("每天及滚动 24 小时最多 ${settings.dailyLimit} 条鼓励，冷却 ${settings.cooldownMinutes} 分钟。安静时段 ${minuteText(settings.quietStart)}—${minuteText(settings.quietEnd)}。", fontSize = 13.sp); Text("达到上限、冷却中、专注中或今天暂停时会跳过提醒。可在「我的」调整上限与冷却；迟到超过 5 分钟不补发。", color = Color.Gray, fontSize = 12.sp) } }
                         items(rules, key = { it.id }) { row -> Panel {
                             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
                                 Column(Modifier.weight(1f)) { Text(ruleTitle(row.type), fontWeight = FontWeight.Bold); Text(ruleDescription(row.model()), fontSize = 12.sp) }
                                 Switch(checked = row.enabled, onCheckedChange = { enabled -> graph.launch { graph.saveRule(row.model().copy(enabled = enabled)) } })
                             }
+                            if (row.enabled && row.type in setOf("FIXED_TIME", "INTERVAL")) {
+                                val next = remember(row, tick / 60_000) { Schedules.next(row.model(), tick, ZoneId.systemDefault()) }
+                                next?.let { Text("下次计划：${Instant.ofEpochMilli(it).atZone(ZoneId.systemDefault()).format(DateTimeFormatter.ofPattern("MM-dd HH:mm"))} · 仍受上限与安静时段约束", color = Color.Gray, fontSize = 11.sp) }
+                            }
                             Row { TextButton(onClick = { editor = row.model() }) { Text("编辑") }; TextButton(onClick = { graph.launch { graph.deleteRule(row.id) } }) { Text("删除") } }
                         } }
                         item { Button(onClick = { editor = Rule(UUID.randomUUID().toString(), type = RuleType.FIXED_TIME) }, modifier = Modifier.fillMaxWidth()) { Text("新增提醒规则") } }
-                        item { OutlinedButton(onClick = { runCatching { graph.notifier.preview() }.onFailure { graph.feedback.value = "请先在系统设置中允许鼓励通知。" } }) { Text("发送一条提醒预览") } }
+                        item { OutlinedButton(onClick = { runCatching { graph.notifier.preview(ContentLibrary.select(settings, null, null, emptySet())) }.onFailure { graph.feedback.value = "请先在系统设置中允许鼓励通知。" } }) { Text("发送一条提醒预览") } }
                         item { Panel { Text("最近提醒", fontWeight = FontWeight.Bold); if (logs.isEmpty()) Text("还没有提醒记录。预览不计入每日额度。", fontSize = 12.sp); logs.take(6).forEach { Text("${clock(it.createdAt)} · ${if (it.state == "SUBMITTED") "已交给系统" else "未发送"} · ${it.title}", fontSize = 12.sp) } } }
                     }
                     2 -> {
@@ -153,7 +184,7 @@ fun ShouxinApp(graph: AppGraph, requestedTab: Int) {
                     }
                     3 -> {
                         item { PreferencesPanel(graph, settings) }
-                        item { OutlinedButton(onClick = { contentPicker = true }, modifier = Modifier.fillMaxWidth()) { Text("管理 100 条原创鼓励 · 收藏与屏蔽") } }
+                        item { OutlinedButton(onClick = { contentPicker = true }, modifier = Modifier.fillMaxWidth()) { Text("管理 ${ContentLibrary.catalog().size} 条鼓励 · 摘句与原创") } }
                         item { Panel {
                             Text("权限与提醒", fontWeight = FontWeight.Bold)
                             Text("使用访问：${if (Permissions.usage(context)) "已开启" else "未开启"}")
@@ -174,7 +205,7 @@ fun ShouxinApp(graph: AppGraph, requestedTab: Int) {
                         } }
                         item { Panel {
                             Text("数据保存在这台手机", fontWeight = FontWeight.Bold)
-                            Text("无需账号。使用明细不会上传；只有主动检查更新时访问 GitHub。", fontSize = 13.sp)
+                            Text("无需账号。使用明细不会上传；文案离线可用，检查更新或查看出处时才访问网络。", fontSize = 13.sp)
                             Text("本地原始事件保留 7 天，聚合与专注记录保留 90 天。", fontSize = 12.sp)
                             TextButton(onClick = { export.launch("shouxin-${LocalDate.now()}.json") }) { Text("导出个人数据") }
                             TextButton(onClick = { clearConfirm = true }) { Text("清空使用与专注记录") }

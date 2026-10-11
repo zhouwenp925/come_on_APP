@@ -19,10 +19,18 @@ object ContentLibrary {
     )
     private val actions = listOf("打开任务，只做最容易开始的那一步。", "把手机放下，给小目标 10 分钟。", "先写一句话，或者先读一页。开始可以很小。", "如果 25 分钟太长，就先做 5 分钟。", "这段休息先到这里，选好下一件事再行动。",
         "把待办拆成一个小动作，然后试着完成它。", "先清理桌面上的一件东西，再打开你的任务。", "关掉当前页面，给自己一个新的开始。", "试着写下接下来最想完成的一件事。", "从一页、一行或者一次练习开始。")
-    fun catalog(): List<Pair<String, String>> = gentle.flatMapIndexed { g, first -> actions.mapIndexed { a, second -> "original-$g-$a" to "$first $second" } }
+    fun catalog(): List<EncouragementEntry> = EncouragementQuotes.entries + gentle.flatMapIndexed { g, first ->
+        actions.mapIndexed { a, second -> EncouragementEntry("original-$g-$a", "$first $second") }
+    }
     fun select(s: UserSettings, type: RuleType?, minutes: Int?, recent: Set<String>): MessageContent {
-        val values = s.customPhrases.mapIndexed { index, value -> "custom-$index" to value } +
-            gentle.flatMapIndexed { g, first -> actions.mapIndexed { a, second -> "original-$g-$a" to (if (s.style == "ACTION") "$second $first" else "$first $second") } }
+        val custom = s.customPhrases.mapIndexed { index, value -> "custom-$index" to value }
+        val selected = if (s.style == "INSPIRING") EncouragementQuotes.entries else catalog()
+        val values = custom + selected.map { entry ->
+            val text = if (s.style == "ACTION" && entry.id.startsWith("original-")) {
+                val parts = entry.id.split('-'); "${actions[parts[2].toInt()]} ${gentle[parts[1].toInt()]}"
+            } else entry.body
+            entry.id to text
+        } + catalog().filter { it.id in s.favorites && selected.none { item -> item.id == it.id } }.map { it.id to it.body }
         val allowed = values.filter { it.first !in s.blocked }.ifEmpty { listOf("fallback" to "给自己一个小小的开始，选择一件事，专注 10 分钟。") }
         val available = allowed.filter { it.first !in recent }.ifEmpty { allowed }
         val preferred = available.filter { it.first in s.favorites }
@@ -33,6 +41,6 @@ object ContentLibrary {
             else -> ""
         }
         val suffix = if (s.style == "GOAL") " 给「${s.goal}」留 10 分钟吧。" else ""
-        return MessageContent(item.first, "给注意力一个小休息", (prefix + item.second + suffix).take(180))
+        return MessageContent(item.first, if (s.style == "INSPIRING") "把时间留给努力发光的你" else "给注意力一个小休息", (prefix + item.second + suffix).take(180))
     }
 }

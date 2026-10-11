@@ -8,7 +8,7 @@ $JdkPath = (Resolve-Path -LiteralPath $JdkPath).Path
 $env:JAVA_HOME = $JdkPath
 if ($Mode -eq 'Release') { & (Join-Path $PSScriptRoot 'New-SigningKey.ps1') -JdkPath $JdkPath }
 $gradleMain = Join-Path $projectRoot '.tools\gradle-8.13\lib\gradle-launcher-8.13.jar'
-$tasks = switch ($Mode) { 'Debug' { @(':core:test',':app:assembleDebug') }; 'Release' { @(':core:test',':app:lintRelease',':app:assembleRelease') }; 'Check' { @(':core:test',':app:lintDebug',':app:testDebugUnitTest',':app:assembleDebug') } }
+$tasks = switch ($Mode) { 'Debug' { @(':core:test',':app:assembleDebug') }; 'Release' { @(':core:test',':app:testDebugUnitTest',':app:lintRelease',':app:assembleRelease') }; 'Check' { @(':core:test',':app:lintDebug',':app:testDebugUnitTest',':app:assembleDebug') } }
 $savedErrorPreference = $ErrorActionPreference
 try {
     $ErrorActionPreference = 'Continue' # Native stderr may contain harmless JVM/SDK warnings.

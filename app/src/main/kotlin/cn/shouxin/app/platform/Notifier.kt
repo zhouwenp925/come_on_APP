@@ -56,10 +56,12 @@ class Notifier(private val context: Context) {
             .addAction(0, "停止守护", PendingIntent.getBroadcast(context, 1, stop, PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT))
             .setWhen(until).build()
     }
-    fun preview() {
+    fun preview(content: MessageContent = MessageContent("preview", "收心 · 提醒预览", "给自己 10 分钟，完成今天的小目标。")) {
         check(Permissions.notifications(context))
         manager.notify(42, NotificationCompat.Builder(context, "motivation").setSmallIcon(R.drawable.ic_leaf)
-            .setContentTitle("收心 · 提醒预览").setContentText("给自己 10 分钟，完成今天的小目标。").setAutoCancel(true).build())
+            .setContentTitle("收心 · 提醒预览").setContentText(content.body)
+            .setStyle(NotificationCompat.BigTextStyle().bigText(content.body))
+            .setVisibility(NotificationCompat.VISIBILITY_PRIVATE).setAutoCancel(true).build())
     }
     fun cancel(rowId: Long) = manager.cancel((rowId + 100).toInt())
     fun cancelAll() = manager.cancelAll()

@@ -1,6 +1,7 @@
 package cn.shouxin.app.platform
 
 import android.content.*
+import android.app.AlarmManager
 import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
 import cn.shouxin.app.graph
@@ -17,7 +18,8 @@ class ReminderReceiver : BroadcastReceiver() {
                     "cn.shouxin.SNOOZE_ACTION" -> graph.snooze(intent.getLongExtra("notificationId", -1))
                     "cn.shouxin.TIME" -> {
                         val id = intent.getStringExtra("id"); val version = intent.getIntExtra("version", 0); val planned = intent.getLongExtra("planned", 0)
-                        graph.collector.refresh(); graph.evaluate(id, version, planned)
+                        // Timed encouragement does not require usage access or an active guardian.
+                        graph.evaluate(id, version, planned)
                         graph.scheduler.markTimeHandled(id, version, planned); graph.scheduler.reconcile()
                     }
                     "cn.shouxin.SNOOZE" -> { graph.collector.refresh(); graph.evaluate(snoozeKey = intent.getStringExtra("key")); graph.scheduler.reconcile() }
@@ -30,7 +32,9 @@ class ReminderReceiver : BroadcastReceiver() {
 class RecoveryReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
         if (intent.action !in setOf(Intent.ACTION_BOOT_COMPLETED, Intent.ACTION_MY_PACKAGE_REPLACED,
-                Intent.ACTION_TIME_CHANGED, Intent.ACTION_TIMEZONE_CHANGED)) return
+                Intent.ACTION_TIME_CHANGED, Intent.ACTION_TIMEZONE_CHANGED,
+                AlarmManager.ACTION_SCHEDULE_EXACT_ALARM_PERMISSION_STATE_CHANGED)) return
+        if (intent.action == AlarmManager.ACTION_SCHEDULE_EXACT_ALARM_PERMISSION_STATE_CHANGED && !Permissions.exactAlarms(context)) return
         val pending = goAsync()
         context.graph.launch {
             try {

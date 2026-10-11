@@ -5,6 +5,7 @@ import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
+import android.os.Build
 import androidx.work.*
 import cn.shouxin.app.data.AppDatabase
 import cn.shouxin.core.*
@@ -20,6 +21,14 @@ class ReminderScheduler(private val context: Context, private val db: AppDatabas
     private fun intent(kind: String, id: String) = Intent(context, ReminderReceiver::class.java)
         .setAction("cn.shouxin.$kind").setData(Uri.parse("shouxin://schedule/$kind/$id"))
     private fun pending(i: Intent) = PendingIntent.getBroadcast(context, 0, i, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
+    private fun schedule(at: Long, operation: PendingIntent) {
+        // Special access is optional. Revocation/denial must not make saving a rule fail.
+        if (Build.VERSION.SDK_INT < 31 || alarm.canScheduleExactAlarms()) {
+            try { alarm.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, at, operation); return }
+            catch (_: SecurityException) { /* Fall back if permission changed while scheduling. */ }
+        }
+        alarm.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, at, operation)
+    }
     fun cancelRule(id: String) { alarm.cancel(pending(intent("TIME", id))) }
     fun cancelSnooze(key: String) { alarm.cancel(pending(intent("SNOOZE", key))) }
     fun cancelFocus(id: Long) { alarm.cancel(pending(intent("FOCUS", id.toString()))) }
@@ -46,7 +55,7 @@ class ReminderScheduler(private val context: Context, private val db: AppDatabas
             if (next == null) { db.dao().saveMeta(MetaRow("schedule:${rule.id}", "")); continue }
             db.dao().saveMeta(MetaRow("schedule:${rule.id}", "${rule.version}:$next"))
             val i = intent("TIME", rule.id).putExtra("id", rule.id).putExtra("version", rule.version).putExtra("planned", next)
-            alarm.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, next, pending(i))
+            schedule(next, pending(i))
         }
         for (snooze in db.dao().snoozes()) {
             if (snooze.at + 300_000 < now) { cancelSnooze(snooze.key); db.dao().deleteSnooze(snooze.key) }
@@ -54,10 +63,10 @@ class ReminderScheduler(private val context: Context, private val db: AppDatabas
         }
     }
     fun scheduleSnooze(key: String, at: Long) {
-        alarm.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, at, pending(intent("SNOOZE", key).putExtra("key", key)))
+        schedule(at, pending(intent("SNOOZE", key).putExtra("key", key)))
     }
     fun scheduleFocus(id: Long, at: Long) {
-        alarm.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, at, pending(intent("FOCUS", id.toString()).putExtra("focusId", id)))
+        schedule(at, pending(intent("FOCUS", id.toString()).putExtra("focusId", id)))
     }
     fun installWorker() {
         WorkManager.getInstance(context).enqueueUniquePeriodicWork("usage-maintenance", ExistingPeriodicWorkPolicy.UPDATE,

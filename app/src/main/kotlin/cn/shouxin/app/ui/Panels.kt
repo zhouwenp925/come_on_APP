@@ -1,6 +1,7 @@
 package cn.shouxin.app.ui
 
 import android.content.Intent
+import android.net.Uri
 import androidx.compose.foundation.*
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -9,6 +10,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -126,16 +128,23 @@ fun RuleEditor(rule: Rule, onDismiss: () -> Unit, onSave: (Rule) -> Unit) {
 
 @Composable
 fun ContentPicker(graph: AppGraph, settings: UserSettings, onDismiss: () -> Unit) {
+    val context = LocalContext.current
     var search by remember { mutableStateOf("") }
     val catalog = remember { ContentLibrary.catalog() }
-    AlertDialog(onDismissRequest = onDismiss, title = { Text("原创鼓励库") }, text = {
+    AlertDialog(onDismissRequest = onDismiss, title = { Text("励志与鼓励文案 · ${catalog.size} 条") }, text = {
         Column {
             OutlinedTextField(search, { search = it }, label = { Text("搜索鼓励") }, singleLine = true)
-            Text("收藏内容会优先出现，屏蔽内容不会发送。", fontSize = 12.sp)
+            Text("网络摘句标有出处。收藏会优先出现，屏蔽后不发送。", fontSize = 12.sp)
             LazyColumn(Modifier.heightIn(max = 400.dp)) {
-                items(catalog.filter { it.second.contains(search) }, key = { it.first }) { (id, body) ->
+                items(catalog.filter { it.body.contains(search) || it.source.contains(search) }, key = { it.id }) { entry ->
+                    val id = entry.id
                     Column(Modifier.padding(vertical = 8.dp)) {
-                        Text(body, fontSize = 13.sp)
+                        Text(entry.body, fontSize = 13.sp)
+                        Text(entry.source, fontSize = 10.sp, color = Color.Gray)
+                        entry.sourceUrl?.let { url -> TextButton(onClick = {
+                            runCatching { context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url))) }
+                                .onFailure { graph.feedback.value = "暂时无法打开出处，请检查是否安装浏览器。" }
+                        }) { Text("查看出处", fontSize = 11.sp) } }
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Checkbox(id in settings.favorites, onCheckedChange = { checked -> graph.launch { graph.settings.change { it.copy(favorites = if (checked) it.favorites + id else it.favorites - id) } } }); Text("收藏", fontSize = 12.sp)
                             Checkbox(id in settings.blocked, onCheckedChange = { checked -> graph.launch { graph.settings.change { it.copy(blocked = if (checked) it.blocked + id else it.blocked - id) } } }); Text("屏蔽", fontSize = 12.sp)
@@ -149,7 +158,7 @@ fun ContentPicker(graph: AppGraph, settings: UserSettings, onDismiss: () -> Unit
 }
 @Composable
 fun StyleChips(style: String, changed: (String) -> Unit) {
-    Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) { listOf("GENTLE" to "温和", "ACTION" to "行动", "GOAL" to "目标").forEach { (value, title) -> FilterChip(selected = style == value, onClick = { changed(value) }, label = { Text(title) }) } }
+    Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(6.dp)) { listOf("INSPIRING" to "励志金句", "GENTLE" to "温和", "ACTION" to "行动", "GOAL" to "目标").forEach { (value, title) -> FilterChip(selected = style == value, onClick = { changed(value) }, label = { Text(title) }) } }
 }
 @Composable
 fun PreferencesPanel(graph: AppGraph, settings: UserSettings) {
