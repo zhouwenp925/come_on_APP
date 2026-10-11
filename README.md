@@ -4,9 +4,19 @@
 
 当前版本 **0.1.0**，最低 Android 10。厂商系统的后台稳定性和耗电需真机验收。
 
+Android 14 模拟器的实际页面（默认设置，没有个人使用数据）：
+
+| 今天 | 专注 |
+|---|---|
+| ![今天](docs/images/today.png) | ![专注](docs/images/focus.png) |
+
+| 规则 | 我的 |
+|---|---|
+| ![规则](docs/images/rules.png) | ![我的](docs/images/profile.png) |
+
 ## 安装和使用
 
-首次安装使用正式包 `shouxin-0.1.0-release.apk`。本地构建结果位于 `artifacts/`；发布后从 [GitHub Releases](https://github.com/zhouwenp925/come_on_APP/releases) 下载。开发包使用独立包名，不能作为正式版更新。
+首次安装使用 [正式 APK 0.1.0](https://github.com/zhouwenp925/come_on_APP/releases/download/v0.1.0/shouxin-0.1.0-release.apk)（约 3 MB）。本地构建结果位于 `artifacts/`；后续版本从 [GitHub Releases](https://github.com/zhouwenp925/come_on_APP/releases) 下载。开发包使用独立包名，不能作为正式版更新。
 
 1. 打开「今天」，开启使用情况访问和通知权限，选择需要留意的 APP。
 2. 开启 1/2/4 小时守护，检测娱乐应用组的连续使用；通知中可以随时停止。
@@ -38,7 +48,7 @@ Windows 可使用项目脚本：
 
 若网络无法下载 Gradle，可给 bootstrap 指定 `-GradleMirror`，脚本仍核验官方 SHA-256。正式版构建自动运行规则测试和 Release Lint，输出 APK 及校验文件到 `artifacts/`。
 
-Linux/macOS 或 CI：设置 JDK/SDK 后执行 `./gradlew :core:test :app:lintDebug :app:assembleDebug`。有设备/模拟器时执行 `./gradlew :app:connectedDebugAndroidTest`，验证页面导航及数据库迁移。
+Linux/macOS 或 CI：设置 JDK/SDK 后执行 `./gradlew :core:test :app:lintDebug :app:assembleDebug`。有设备/模拟器时执行 `./gradlew :app:connectedDebugAndroidTest`，验证页面导航及数据库迁移。没有 GitHub CLI 时，本地发版脚本使用 Python 3 标准库和已有 Git 登录，不增加第三方 Python 依赖。
 
 ## 保留数据的更新
 
@@ -57,4 +67,4 @@ APP「我的 → 检查更新」读取本仓库最新正式 Release；用户下�
 
 原始事件保留 7 天，日汇总、提醒和专注记录保留 90 天。导出 JSON 包含设置、规则和保留期内记录；首版没有 JSON 导入恢复功能。清空记录保留规则和偏好，并阻止重新导入清空前的历史。使用明细不联网传输；主动检查和下载更新时访问 GitHub。系统备份关闭。
 
-详见 [产品开发报告](docs/收心APP产品开发报告.md)、[开发与发布指南](docs/开发与发布指南.md)、[Android 真机验收](docs/Android真机验收.md) 和 [交付验证记录](docs/交付验证记录.md)。CI 在推送后构建开发包，运行规则测试、Lint 和 Android 10 模拟器测试；结果以 Actions 页面为准。
+详见 [产品开发报告](docs/收心APP产品开发报告.md)、[开发与发布指南](docs/开发与发布指南.md)、[Android 真机验收](docs/Android真机验收.md) 和 [交付验证记录](docs/交付验证记录.md)。CI 在推送后构建开发包，运行规则测试、Lint 和 Android 10/14 模拟器测试；结果以 Actions 页面为准。

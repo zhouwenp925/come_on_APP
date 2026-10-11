@@ -20,6 +20,7 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--repository", default="zhouwenp925/come_on_APP")
     parser.add_argument("--draft", action="store_true")
+    parser.add_argument("--replace-draft-assets", action="store_true", help="Replace changed assets only in an unpublished draft")
     args = parser.parse_args()
     repo = args.repository
     if not re.fullmatch(r"[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+", repo):
@@ -55,6 +56,8 @@ def main():
             "X-GitHub-Api-Version": "2022-11-28", "User-Agent": "Shouxin-release",
             "Content-Type": "application/octet-stream" if binary is not None else "application/json"})
         with urlopen(req, timeout=90) as response:
+            if response.status == 204:
+                return None
             return json.load(response)
 
     remote = request("contents/version.properties?ref=main")
@@ -76,9 +79,15 @@ def main():
         existing = next((a for a in assets if a["name"] == file.name), None)
         if existing:
             if existing.get("digest") != "sha256:" + hashlib.sha256(content).hexdigest():
-                raise ValueError("Draft asset differs; inspect the draft before replacing it")
-            continue
+                if not args.replace_draft_assets:
+                    raise ValueError("Draft asset differs; inspect the draft before replacing it")
+                request(f"releases/assets/{existing['id']}", "DELETE")
+            else:
+                continue
         request(f"https://uploads.github.com/repos/{repo}/releases/{release['id']}/assets?name={quote(file.name)}", "POST", binary=content)
+    if args.replace_draft_assets:
+        request(f"releases/{release['id']}", "PATCH", {"target_commitish": request("commits/main")["sha"],
+            "body": (root / "CHANGELOG.md").read_text(encoding="utf-8")})
     if not args.draft:
         request(f"releases/{release['id']}", "PATCH", {"draft": False})
     print("Draft ready:" if args.draft else "Published:", f"https://github.com/{repo}/releases/tag/{tag}")
