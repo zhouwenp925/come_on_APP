@@ -48,8 +48,8 @@ APP「我的 → 检查更新」读取本仓库最新正式 Release；用户下�
 
 已提供两条发版路径：
 
-- **本地发版**：正式构建后运行 `scripts/Publish-Release.ps1`（需 GitHub CLI 登录），或在 GitHub Releases 网页创建 `v0.1.0`，附上 APK 和 `.sha256`。这条路径无需将签名私钥交给 CI。
-- **Actions 自动发版**：自行运行 `scripts/Configure-GitHubSigning.ps1`，把本地原签名放入仓库加密 Secrets，再提交版本变更并推送 `vX.Y.Z` 标签。`release.yml` 执行测试、Lint、签名构建并上传 Release。签名 Secret 尚未配置时会明确失败。
+- **本地发版**：正式构建后运行 `scripts/Publish-Release.ps1`（使用 GitHub CLI 或已有 Git 登录），或在 GitHub Releases 网页创建 `v0.1.0`，附上 APK 和 `.sha256`。这条路径无需将签名私钥交给 CI。
+- **Actions 自动发版**：自行运行 `scripts/Configure-GitHubSigning.ps1`，把本地原签名放入仓库加密 Secrets 并启用 `SIGNED_RELEASE_CI_ENABLED`，再提交版本变更并推送 `vX.Y.Z` 标签。`release.yml` 执行测试、Lint、签名构建并上传 Release。尚未启用时工作流跳过签名发布。
 
 **请私下备份 `.signing/shouxin-release.jks` 和 `signing.properties`，不要提交、公开或重新生成。丢失它们将无法继续给已安装用户覆盖更新。** 本项目忽略这些文件、SDK、构建缓存和安装包。
 

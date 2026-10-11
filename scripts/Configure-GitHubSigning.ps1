@@ -20,4 +20,6 @@ foreach ($name in $values.Keys) {
     $values[$name] | & gh secret set $name --repo $Repository
     if ($LASTEXITCODE -ne 0) { throw ('Secret configuration failed: ' + $name) }
 }
+& gh variable set SIGNED_RELEASE_CI_ENABLED --body true --repo $Repository
+if ($LASTEXITCODE -ne 0) { throw 'Signing secrets saved, but enabling the release workflow failed.' }
 Write-Output 'Signing secrets configured. Use the same key for every future release.'

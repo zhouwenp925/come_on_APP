@@ -7,6 +7,7 @@ permissions:
   contents: write
 jobs:
   release:
+    if: vars.SIGNED_RELEASE_CI_ENABLED == 'true'
     runs-on: ubuntu-latest
     env:
       SIGNING_STORE_FILE: release-signing.jks
@@ -20,6 +21,8 @@ jobs:
           distribution: temurin
           java-version: '17'
       - uses: android-actions/setup-android@v3
+        with:
+          packages: 'platform-tools platforms;android-36 build-tools;35.0.0'
       - uses: gradle/actions/setup-gradle@v4
       - name: Validate signing and version
         env:
