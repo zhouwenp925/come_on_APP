@@ -37,6 +37,7 @@ class PlatformSmokeTest {
         val pkg = activity.packageName
         graph.notifier.channels()
         try {
+            shell("input keyevent KEYCODE_WAKEUP"); shell("wm dismiss-keyguard")
             shell("appops set $pkg GET_USAGE_STATS deny")
             assertFalse(Permissions.usage(activity))
             assertFalse(graph.collector.refresh().available)
@@ -55,9 +56,13 @@ class PlatformSmokeTest {
             awaitState { manager.activeNotifications.any { it.id == 1 } }
             compose.runOnUiThread { activity.startActivity(Intent(Settings.ACTION_SETTINGS)) }
             SystemClock.sleep(2000) // Generate a real platform foreground interval, not a mock snapshot.
-            val snapshot = graph.collector.refresh()
+            var snapshot = graph.collector.refresh()
+            val deadline = SystemClock.elapsedRealtime() + 10_000
+            while ((snapshot.activePackage != "com.android.settings" || snapshot.dailyGroupMillis == 0L) && SystemClock.elapsedRealtime() < deadline) {
+                SystemClock.sleep(500); snapshot = graph.collector.refresh()
+            }
             assertTrue(snapshot.available)
-            assertEquals("com.android.settings", snapshot.activePackage)
+            assertEquals("Recent events: ${graph.dao.events(System.currentTimeMillis() - 60_000).takeLast(12)}", "com.android.settings", snapshot.activePackage)
             assertTrue("Settings foreground usage was not collected", snapshot.dailyGroupMillis > 0)
 
             activity.stopService(Intent(activity, GuardianService::class.java))
@@ -69,7 +74,8 @@ class PlatformSmokeTest {
             graph.settings.change { previous }
             graph.notifier.cancelAll()
             shell("appops set $pkg GET_USAGE_STATS default")
-            if (Build.VERSION.SDK_INT >= 33) shell("pm revoke $pkg android.permission.POST_NOTIFICATIONS")
+            // Android 14 kills this instrumentation process when a runtime permission is revoked.
+            // Each CI emulator is disposable; keep notification permission until runner cleanup.
         }
     }
 }

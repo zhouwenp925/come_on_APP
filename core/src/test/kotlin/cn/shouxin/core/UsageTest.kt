@@ -40,4 +40,9 @@ class UsageTest {
         assertEquals(90_000L, result.duration(base, base + 650_000))
         assertEquals(base + 620_000, result.groupSession(setOf("video"), base + 650_000)!!.startedAt)
     }
+    @Test fun startupWithoutKeyguardEventsAcceptsNewForegroundEvidence() {
+        val result = UsageReconstructor.replay(listOf(e(0, "", EventKind.DEVICE_STARTUP), e(10, "video")), base + 30_000)
+        assertEquals("video", result.activePackage)
+        assertEquals(20_000L, result.duration(base, base + 30_000))
+    }
 }

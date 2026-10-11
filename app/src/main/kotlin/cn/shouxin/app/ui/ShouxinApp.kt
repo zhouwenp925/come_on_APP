@@ -129,7 +129,7 @@ fun ShouxinApp(graph: AppGraph, requestedTab: Int) {
                             Text("今天 APP 使用", fontWeight = FontWeight.Bold)
                             if (!usage.available) Text("获得有效数据后展示排名。")
                             else usage.appMillis.entries.sortedByDescending { it.value }.take(8).forEach { (pkg, millis) ->
-                                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) { Text(choices.firstOrNull { it.packageName == pkg }?.name ?: pkg, modifier = Modifier.weight(1f), maxLines = 1); Text(duration(millis), fontSize = 12.sp) }
+                                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) { Text(if (pkg == context.packageName) "收心" else choices.firstOrNull { it.packageName == pkg }?.name ?: pkg, modifier = Modifier.weight(1f), maxLines = 1); Text(duration(millis), fontSize = 12.sp) }
                             }
                         } }
                         item { WeekPanel(daily, settings.targets) }

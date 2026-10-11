@@ -51,7 +51,7 @@ object UsageReconstructor {
                 EventKind.LOCK -> { locked = true; active = null; resets += event.at }
                 EventKind.UNLOCK -> locked = false
                 EventKind.DEVICE_SHUTDOWN -> { interactive = false; active = null; resets += event.at }
-                EventKind.DEVICE_STARTUP -> { interactive = true; locked = true; active = null; resets += event.at }
+                EventKind.DEVICE_STARTUP -> { interactive = true; locked = false; active = null; resets += event.at }
             }
         }
         append(until)
