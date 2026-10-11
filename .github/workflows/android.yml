@@ -58,12 +58,12 @@ jobs:
           disable-animations: true
           script: |
             ./gradlew :app:connectedDebugAndroidTest --stacktrace
-            adb exec-out run-as cn.shouxin.app.debug tar -C files -cf - screenshots > device-screenshots.tar
+            adb pull /sdcard/Pictures/shouxin-tests device-screenshots
       - uses: actions/upload-artifact@v4
         if: always()
         with:
           name: android-device-test-reports-api-${{ matrix.api }}
           path: |
             app/build/reports/androidTests/
-            device-screenshots.tar
+            device-screenshots/
           retention-days: 14

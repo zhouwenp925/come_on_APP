@@ -8,7 +8,9 @@ import org.junit.Test
 import org.junit.runner.RunWith
 import androidx.test.platform.app.InstrumentationRegistry
 import android.graphics.Bitmap
-import java.io.File
+import android.content.ContentValues
+import android.provider.MediaStore
+import android.os.Environment
 
 @RunWith(AndroidJUnit4::class)
 class NavigationTest {
@@ -16,10 +18,18 @@ class NavigationTest {
     private fun screenshot(name: String) {
         compose.waitForIdle()
         val instrumentation = InstrumentationRegistry.getInstrumentation()
-        val folder = File(instrumentation.targetContext.filesDir, "screenshots").apply { mkdirs() }
+        val resolver = instrumentation.targetContext.contentResolver
+        val values = ContentValues().apply {
+            put(MediaStore.Images.Media.DISPLAY_NAME, "$name.png")
+            put(MediaStore.Images.Media.MIME_TYPE, "image/png")
+            put(MediaStore.Images.Media.RELATIVE_PATH, "${Environment.DIRECTORY_PICTURES}/shouxin-tests")
+            put(MediaStore.Images.Media.IS_PENDING, 1)
+        }
+        val uri = checkNotNull(resolver.insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, values))
         val image = instrumentation.uiAutomation.takeScreenshot()
-        File(folder, "$name.png").outputStream().use { image.compress(Bitmap.CompressFormat.PNG, 100, it) }
+        checkNotNull(resolver.openOutputStream(uri)).use { image.compress(Bitmap.CompressFormat.PNG, 100, it) }
         image.recycle()
+        resolver.update(uri, ContentValues().apply { put(MediaStore.Images.Media.IS_PENDING, 0) }, null, null)
     }
     @Test fun fourTabsWorkWithoutUsagePermission() {
         compose.onNodeWithText("今天的注意力").assertIsDisplayed()
